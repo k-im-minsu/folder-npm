@@ -3,7 +3,7 @@ const err=[]
 const check=[]
 function CheckModuel(path){
     path=path.replace(/\\/gi,"/")
-    const p=path+'/.fnpm'
+    const p=path+'/fnpm.json'
     const pp=path+'/package.json'
     if(fs.existsSync(p)&&fs.existsSync(pp)){
         const fnpm=JSON.parse(fs.readFileSync(p))
@@ -12,17 +12,17 @@ function CheckModuel(path){
         for(var fn of fnpm.ignore){
             fn=fn.replace(/\\/gi,"/")
             if(fn.length>2&fn[0]==='*'&&fn[1]==='.'){
-                filter.push({i:3,s:fn.substr(2,fn.length-2)})
+                filter.push({i:3,s:fn.substring(2,fn.length)})
             }else if(fn.length>1){
                 if(fn[fn.length-1]==='/'){
                     if(fn[0]==='/'){
-                        const ff=fn.substr(1,fn.length-1)
-                        filter.push({i:21,s:ff.substr(0,ff.length-1).split('/')})
+                        const ff=fn.substring(1,fn.length)
+                        filter.push({i:21,s:ff.substring(0,ff.length-1).split('/')})
                     }else{
-                        filter.push({i:2,s:fn.substr(0,fn.length-1).split('/')})
+                        filter.push({i:2,s:fn.substring(0,fn.length-1).split('/')})
                     }
                 }else if(fn[0]==='/'){
-                    filter.push({i:1,s:fn.substr(1,fn.length-1).split('/')})
+                    filter.push({i:1,s:fn.substring(1,fn.length).split('/')})
                 }else{
                     filter.push({i:0,s:fn.split('/')})
                 }
@@ -35,86 +35,89 @@ function CheckModuel(path){
         return null
     }
 }
-function CheckName(filename,filter,is_folder){
-    switch(filter.i){
-        case 1:
-            filename=filename.split('/')
-            if(filename.length>=filter.s.length){
-                for(var i in filter.s){
-                    if(filter.s[i]!==filename[i]){
-                        return true
-                    }
-                }
-                return false
-            }
-            break
-         case 21:
-              filename=filename.split('/')
-              if(filename.length>=filter.s.length){
-                  for(var i in filter.s){
-                     if(filter.s[i]!==filename[i]){
-                        return true
-                       }
-                  }
-                  if(filename.length==filter.s.length&&!is_folder)return true
-                  return false
-              }
-             break
-        case 2:
-            filename=filename.split('/')
-            if(filename.length>=filter.s.length){
-                var ti=0
-                for(var i in filename){
-                    if(filter.s[ti]===filename[i]){
-                        ti++
-                        if(ti==filter.s.length){
-                            if(filename.length-1==i&&!is_folder)return true
-                            return false
+function CheckName(filename,filters,is_folder){
+    const filename_origin=filename
+    filename=filename.split('/')
+    for(var filter of filters){
+        switch(filter.i){
+            case 1:
+                if(filename.length>=filter.s.length){
+                    for(var i in filter.s){
+                        if(filter.s[i]!==filename[i]){
+                            return true
                         }
-                    }else{
-                        ti=0
                     }
-                }
-            }
-            break
-        case 3:
-            if(!is_folder){
-                filename=filename.split('/')
-                const i=filename[filename.length-1].indexOf('.')
-                if(filename.substr(i+1,filename.length-(i+1))===filter.s){
                     return false
                 }
-            }
-            break
-        default:
-            filename=filename.split('/')
-            if(filename.length>=filter.s.length){
-                var ti=0
-                for(var i in filename){
-                    if(filter.s[ti]===filename[i]){
-                        ti++
-                        if(ti==filter.s.length){
-                            return false
+                break
+             case 21:
+                  if(filename.length>=filter.s.length){
+                      for(var i in filter.s){
+                         if(filter.s[i]!==filename[i]){
+                            return true
+                           }
+                      }
+                      if(filename.length==filter.s.length&&!is_folder)return true
+                      return false
+                  }
+                 break
+            case 2:
+                if(filename.length>=filter.s.length){
+                    var ti=0
+                    for(var i in filename){
+                        if(filter.s[ti]===filename[i]){
+                            ti++
+                            if(ti==filter.s.length){
+                                if(filename.length-1==i&&!is_folder)return true
+                                return false
+                            }
+                        }else{
+                            ti=0
                         }
-                    }else{
-                        ti=0
                     }
                 }
-            }
-            break
+                break
+            case 3:
+                if(!is_folder){
+                    const i=filename[filename.length-1].indexOf('.')
+                    if(filename[filename.length-1].substring(i+1,filename[filename.length-1].length)===filter.s){
+                        return false
+                    }
+                }
+                break
+            default:
+                if(filename.length>=filter.s.length){
+                    var ti=0
+                    for(var i in filename){
+                        if(filter.s[ti]===filename[i]){
+                            ti++
+                            if(ti==filter.s.length){
+                                return false
+                            }
+                        }else{
+                            if(filter.s[0]==filename[i]){
+                                ti=1
+                            }else{
+                                ti=0
+                            }
+                        }
+                    }
+                }
+                break
+        }
     }
     return true
 }
 function CopyTo(c,cpath){
-    const nmpath=cpath+'node_modules'
+    var nmpath=cpath+'node_modules'
     if(!fs.existsSync(nmpath)){
-        fs.mkdir(nmpath)
+        fs.mkdirSync(nmpath)
     }
     nmpath+='/'+c.pkgname
     if(fs.existsSync(nmpath)){
         fs.rmSync(nmpath,{ recursive: true, force: true })
     }
-    fs.mkdir(nmpath)
+    fs.mkdirSync(nmpath)
    const list= fs.readdirSync(c.path)
    for(var name of list){
     const stat=fs.statSync(c.path+'/'+name)
@@ -124,8 +127,8 @@ function CopyTo(c,cpath){
         }
     }else{
         if(CheckName(name,c.filter,true)){
-            fs.mkdir(nmpath+'/'+name)
-            ChildCopyTo(1,c.path+'/'+name,nmpath+'/'+name,c,naem+'/')
+            fs.mkdirSync(nmpath+'/'+name)
+            ChildCopyTo(1,c.path+'/'+name,nmpath+'/'+name,c,name+'/')
         }
     }
    }
@@ -140,7 +143,7 @@ function ChildCopyTo(index,path,cpath,c,stack){
          }
      }else{
          if(CheckName(stack+name,c.filter,true)){
-             fs.mkdir(cpath+'/'+name)
+             fs.mkdirSync(cpath+'/'+name)
              ChildCopyTo(index+1,path+'/'+name,cpath+'/'+name,c,stack+name+'/')
          }
      }
@@ -160,9 +163,22 @@ function CheckVer(base,change){
     }
     return 0
 }
-const FromParentPath=(foldername)=>{
-    Path('../'+foldername)
+/**
+ * search by module folder name in this project parent folder
+ * @param {string} foldername search module folder name
+ * @param {number} offset parent folder offset, default=1(parent folder for the current project)
+ */
+const FromParentPath=(foldername,offset=1)=>{
+    var p=''
+    for(var i=0;i<offset;i++){
+        p+='../'
+    }
+    Path(p+foldername)
 }
+/**
+ * search by absolute path of module
+ * @param {string} path absolute path
+ */
 const Path=(path)=>{
     const r=CheckModuel(path)
     if(r){
@@ -171,8 +187,11 @@ const Path=(path)=>{
         err.push('Error : not folder-npm module "'+path+'"')
     }
 }
+/**
+ * last call after specifying the path
+ */
 const Install=()=>{
-    var cpath=__dirname+'/'
+    var cpath=process.cwd().replace(/\\/gi,"/")+'/'
     while(!fs.existsSync(cpath+'package.json')){
         cpath+='../'
     }
@@ -185,14 +204,14 @@ const Install=()=>{
     const npkg_list={}
     const pkg_list={}
     for(var c of check){
-        npkg_list[c.pkg]=c.ver
+        npkg_list[c.pkgname]=c.ver
     }
     for(var c of check){
        for(var need in c.need){
         const ver=c.need[need]
         const ever=npkg_list[need]
         if(!ever){
-            err.push('Error : not contain dependency of folder-npm module ("'+c.pkg+'" need "'+need+'" )')
+            err.push('Error : not contain dependency of folder-npm module ("'+c.pkgname+'" need "'+need+'" )')
             continue
         }
         if(CheckVer(ever,ver)>0){
@@ -216,9 +235,6 @@ const Install=()=>{
         }
         return
     }
-    for(var c of check){
-        CopyTo(c,cpath)
-    }
     const pkg=JSON.parse(fs.readFileSync(cpath+'package.json'))
     for(var need in pkg.dependencies){
         const ver=pkg.dependencies[need]
@@ -231,17 +247,24 @@ const Install=()=>{
     }
     pkg.dependencies=pkg_list
     fs.writeFileSync(cpath+'package.json',JSON.stringify(pkg,null,2))
-    if(!fs.existsSync(cpath+'.fnpm')){
-        fs.writeFileSync(cpath+'.fnpm',JSON.stringify({
+    process.chdir(cpath)
+    var child_process = require('child_process');
+    child_process.execSync('npm install');
+    for(var c of check){
+        CopyTo(c,cpath)
+    }
+    if(!fs.existsSync(cpath+'fnpm.json')){
+        fs.writeFileSync(cpath+'fnpm.json',JSON.stringify({
             ignore:['.git','*.log','node_modules/'],
             dependencies:npkg_list
         },null,2))
     }else{
-        const npkg=JSON.parse(fs.readFileSync(cpath+'.fnpm'))
+        const npkg=JSON.parse(fs.readFileSync(cpath+'fnpm.json'))
         npkg.dependencies=npkg_list
-        fs.writeFileSync(cpath+'.fnpm',JSON.stringify(npkg,null,2))
+        fs.writeFileSync(cpath+'fnpm.json',JSON.stringify(npkg,null,2))
     }
-    process.chdir(cpath)
-    var child_process = require('child_process');
-    child_process.execSync('npm install');
+}
+
+module.exports={
+    Path,FromParentPath,Install
 }
