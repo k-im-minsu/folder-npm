@@ -242,7 +242,7 @@ const Install=()=>{
         if(!ever){
             pkg_list[need]=ver
         }else if(CheckVer(ver,ever)>0){
-            pkg_list[need]=ver
+            pkg_list[need]=ever
         }
     }
     pkg.dependencies=pkg_list
